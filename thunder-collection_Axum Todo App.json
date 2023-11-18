@@ -1,0 +1,103 @@
+{
+    "client": "Thunder Client",
+    "collectionName": "Axum Todo App",
+    "dateExported": "2023-11-17T14:57:05.652Z",
+    "version": "1.1",
+    "folders": [],
+    "requests": [
+        {
+            "_id": "aff4598d-d194-49e2-b825-5a7e7c900050",
+            "colId": "875c2373-e1d9-4858-8a7d-74239bac46d2",
+            "containerId": "",
+            "name": "Health Check",
+            "url": "http://127.0.0.1:3000/",
+            "method": "GET",
+            "sortNum": 5000,
+            "created": "2023-11-17T14:45:53.957Z",
+            "modified": "2023-11-17T14:46:05.791Z",
+            "headers": [],
+            "params": [],
+            "tests": []
+        },
+        {
+            "_id": "079130c7-f7fc-4308-86b8-537f500f16c3",
+            "colId": "875c2373-e1d9-4858-8a7d-74239bac46d2",
+            "containerId": "",
+            "name": "Get Todos",
+            "url": "http://127.0.0.1:3000/todos",
+            "method": "GET",
+            "sortNum": 10000,
+            "created": "2023-11-17T14:44:26.486Z",
+            "modified": "2023-11-17T14:45:36.331Z",
+            "headers": [],
+            "params": [],
+            "tests": []
+        },
+        {
+            "_id": "653e150f-53a4-4a03-b0ef-38008290522e",
+            "colId": "875c2373-e1d9-4858-8a7d-74239bac46d2",
+            "containerId": "",
+            "name": "Get Todo",
+            "url": "http://127.0.0.1:3000/todos/3",
+            "method": "GET",
+            "sortNum": 20000,
+            "created": "2023-11-17T14:51:02.922Z",
+            "modified": "2023-11-17T14:51:34.894Z",
+            "headers": [],
+            "params": [],
+            "tests": []
+        },
+        {
+            "_id": "5229ed81-b2ef-428e-8fa6-5b39b78b5cce",
+            "colId": "875c2373-e1d9-4858-8a7d-74239bac46d2",
+            "containerId": "",
+            "name": "Create Todo",
+            "url": "http://127.0.0.1:3000/todos",
+            "method": "POST",
+            "sortNum": 30000,
+            "created": "2023-11-17T14:46:17.271Z",
+            "modified": "2023-11-17T14:47:46.841Z",
+            "headers": [],
+            "params": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"task\":\"Eat\",\n  \"completed\":false\n}",
+                "form": []
+            },
+            "tests": []
+        },
+        {
+            "_id": "e214d732-3a06-44cf-ac39-425b3a40fde7",
+            "colId": "875c2373-e1d9-4858-8a7d-74239bac46d2",
+            "containerId": "",
+            "name": "Update Todo",
+            "url": "http://127.0.0.1:3000/todos/3",
+            "method": "PATCH",
+            "sortNum": 40000,
+            "created": "2023-11-17T14:48:12.617Z",
+            "modified": "2023-11-17T14:52:00.735Z",
+            "headers": [],
+            "params": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"task\":\"Repeat\",\n  \"completed\":false\n}",
+                "form": []
+            },
+            "tests": []
+        },
+        {
+            "_id": "467549f5-88e4-4c1e-a251-83ba001a2520",
+            "colId": "875c2373-e1d9-4858-8a7d-74239bac46d2",
+            "containerId": "",
+            "name": "Delete Todo",
+            "url": "http://127.0.0.1:3000/todos/3",
+            "method": "DELETE",
+            "sortNum": 60000,
+            "created": "2023-11-17T14:52:15.519Z",
+            "modified": "2023-11-17T14:52:27.750Z",
+            "headers": [],
+            "params": [],
+            "tests": []
+        }
+    ]
+}
