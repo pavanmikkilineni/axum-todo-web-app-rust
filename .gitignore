@@ -2,3 +2,4 @@
 /todo.db
 /todo.db-shm
 /todo.db-wal
+/.env

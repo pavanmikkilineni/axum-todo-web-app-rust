@@ -1,20 +1,30 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{
         header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method, StatusCode,
     },
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
     Json, Router, Server,
 };
 
+use aws_sdk_cognitoidentityprovider as cognitoidentity;
+
+use base64::{engine::general_purpose, Engine};
+use cognitoidentity::{
+    types::{builders::AttributeTypeBuilder, AttributeType},
+    Client,
+};
+use ring::{digest, hmac};
 use serde_json::json;
 
 use sqlx::{migrate::MigrateDatabase, query, query_as, sqlite::SqlitePoolOptions, Pool, Sqlite};
 use tower_http::cors::CorsLayer;
 
 use std::{net::SocketAddr, sync::Arc};
+
+use dotenv::dotenv;
 
 // Data model representing a Todo item
 #[derive(Debug, sqlx::FromRow, serde::Serialize, serde::Deserialize)]
@@ -38,9 +48,17 @@ struct UpdateTodoSchema {
     completed: bool,
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct SignupSchema {
+    username: String,
+    email: String,
+    password: String,
+}
+
 // Struct representing the application state
 pub struct AppState {
     db: Pool<Sqlite>,
+    client: Client,
 }
 
 // Handler for the health checker route
@@ -216,9 +234,66 @@ pub async fn delete_todo(
     Ok(StatusCode::NO_CONTENT)
 }
 
+async fn login() -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    Ok(())
+}
+
+async fn signup(
+    State(data): State<Arc<AppState>>,
+    Json(body): Json<SignupSchema>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let client_id = std::env::var("CLIENT_ID").unwrap();
+
+    let client_secret = generate_secret_hash(
+        &std::env::var("CLIENT_SECRET").unwrap(),
+        &body.username,
+        &client_id,
+    );
+    let _user_pool_id = std::env::var("USER_POOL_ID").unwrap();
+
+    let user_attribute_email = AttributeTypeBuilder::default()
+        .name("email")
+        .value(&body.email)
+        .build()
+        .unwrap();
+
+    let signup_fluent_builder = data
+        .client
+        .sign_up()
+        .client_id(client_id)
+        .secret_hash(client_secret)
+        .username(&body.username)
+        .password(&body.password)
+        .user_attributes(user_attribute_email);
+
+    match signup_fluent_builder.send().await {
+        Ok(response) => println!("Response: {:?}",response),
+        Err(error) => println!("Error: {:?}",error),
+    };
+
+    Ok(())
+
+}
+
+fn generate_secret_hash(client_secret: &str, user_name: &str, client_id: &str) -> String {
+    let key = hmac::Key::new(hmac::HMAC_SHA256, client_secret.as_bytes());
+    let msg = [user_name.as_bytes(), client_id.as_bytes()].concat();
+
+    let signature = hmac::sign(&key, &msg);
+
+    let encoded_hash = general_purpose::STANDARD.encode(signature.as_ref());
+
+    encoded_hash
+}
+
 // Entry point of the application
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
+
+    let config = aws_config::load_from_env().await;
+    let client = aws_sdk_cognitoidentityprovider::Client::new(&config);
+
     const DB_URL: &str = "sqlite://todo.db";
 
     // Check if the database exists, if not, create it
@@ -263,7 +338,10 @@ async fn main() {
     println!("Create todo table");
 
     // Create an Arc-wrapped instance of the application state
-    let app_state = Arc::new(AppState { db: pool.clone() });
+    let app_state = Arc::new(AppState {
+        db: pool.clone(),
+        client: client.clone(),
+    });
 
     // Configure CORS settings for the application
     let cors = CorsLayer::new()
@@ -280,6 +358,8 @@ async fn main() {
             "/todos/:id",
             get(get_todo).patch(update_todo).delete(delete_todo),
         )
+        .route("/login", post(login))
+        .route("/signup", post(signup))
         .with_state(app_state)
         .layer(cors);
 

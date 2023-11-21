@@ -12,3 +12,8 @@ serde_json = "1"
 tokio = { version = "1.29", features = ["full"] }
 sqlx = { version = "0.7.2", features = ["runtime-tokio-native-tls", "sqlite"]}
 tower-http = { version = "0.4.0", features = ["cors"] }
+aws-config = { version = "1.0.0", features = ["behavior-version-latest"] }
+aws-sdk-cognitoidentityprovider = "0.39.0"
+dotenv = "0.15.0"
+ring = "0.17.5"
+base64 = "0.21.5"
