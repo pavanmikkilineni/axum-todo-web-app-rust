@@ -1,7 +1,7 @@
 {
     "client": "Thunder Client",
     "collectionName": "Axum Todo App",
-    "dateExported": "2023-11-17T14:57:05.652Z",
+    "dateExported": "2023-11-22T10:31:30.471Z",
     "version": "1.1",
     "folders": [],
     "requests": [
@@ -98,6 +98,56 @@
             "headers": [],
             "params": [],
             "tests": []
+        },
+        {
+            "_id": "1ce28a64-82b6-49d0-afb4-c6079fd7f51c",
+            "colId": "875c2373-e1d9-4858-8a7d-74239bac46d2",
+            "containerId": "",
+            "name": "Signup",
+            "url": "http://127.0.0.1:3000/signup",
+            "method": "POST",
+            "sortNum": 70000,
+            "created": "2023-11-21T14:22:10.263Z",
+            "modified": "2023-11-21T14:25:18.553Z",
+            "headers": [],
+            "params": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n    \"username\": \"pavanmikkilineni\",\n    \"email\": \"pavanmikkilineni690@gmail.com\",\n    \"password\": \"Pavan@3206\"\n}",
+                "form": []
+            },
+            "tests": []
+        },
+        {
+            "_id": "19e98c42-026c-4671-acf8-1da0a95336fa",
+            "colId": "875c2373-e1d9-4858-8a7d-74239bac46d2",
+            "containerId": "",
+            "name": "Login",
+            "url": "http://127.0.0.1:3000/login",
+            "method": "POST",
+            "sortNum": 80000,
+            "created": "2023-11-22T10:25:30.409Z",
+            "modified": "2023-11-22T10:27:41.971Z",
+            "headers": [],
+            "params": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"username\":\"testuser\",\n  \"password\":\"Abcd@1234\"\n}",
+                "form": []
+            },
+            "tests": []
+        },
+        {
+            "_id": "01e93fbb-869b-4e88-bc85-b392996d4636",
+            "colId": "875c2373-e1d9-4858-8a7d-74239bac46d2",
+            "containerId": "",
+            "name": "ConfirmUser",
+            "url": "",
+            "method": "GET",
+            "sortNum": 90000,
+            "created": "2023-11-22T10:28:12.465Z",
+            "modified": "2023-11-22T10:28:12.465Z",
+            "headers": []
         }
     ]
 }
