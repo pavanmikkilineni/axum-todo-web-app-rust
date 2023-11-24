@@ -270,11 +270,12 @@ pub async fn signup(
         Ok(response) => {
             let success_response = if response.user_confirmed {
                 serde_json::json!({
-                    "status": "success","message": "User requires confirmation. Check email for a verification code."
+                    "status": "success","message": "User is confirmed and ready to use."
                 })
+               
             } else {
                 serde_json::json!({
-                    "status": "success","message": "User is confirmed and ready to use."
+                    "status": "success","message": "User requires confirmation. Check email for a verification code."
                 })
             };
 

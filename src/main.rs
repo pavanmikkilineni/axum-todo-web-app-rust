@@ -2,13 +2,14 @@ mod handler;
 mod model;
 mod route;
 mod schema;
+mod middleware;
 
 use axum::{
     http::{
         header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method,
     },
-    Server,
+    Server, middleware::from_fn_with_state,
 };
 
 use aws_sdk_cognitoidentityprovider as cognitoidentity;
@@ -22,7 +23,7 @@ use std::{net::SocketAddr, sync::Arc};
 
 use dotenv::dotenv;
 
-use crate::route::create_router;
+use crate::{route::create_router, middleware::mw_require_auth};
 
 // Struct representing the application state
 pub struct AppState {
@@ -95,7 +96,8 @@ async fn main() {
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
 
     // Create the Axum application with routes and middleware
-    let app = create_router(app_state).layer(cors);
+    let app = create_router(app_state)
+    .layer(cors);
 
     println!("🚀 Server started successfully");
 
