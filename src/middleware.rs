@@ -5,8 +5,9 @@ use axum::{
 };
 
 use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
-use serde::{Deserialize, Serialize};
+use jsonwebtokens_cognito::KeySet;
 use reqwest;
+use serde::{de::value, Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
@@ -30,7 +31,6 @@ struct JWKS {
     keys: Vec<JWK>,
 }
 
-
 pub async fn mw_require_auth<B>(
     request: Request<B>,
     next: Next<B>,
@@ -46,20 +46,30 @@ pub async fn mw_require_auth<B>(
         return Err(StatusCode::UNAUTHORIZED);
     };
 
+    println!("{}", auth_header);
+
     let user_pool_region = std::env::var("USER_POOL_REGION").unwrap();
     let user_pool_id = std::env::var("USER_POOL_ID").unwrap();
-    let _client_id = std::env::var("CLIENT_ID").unwrap();
+    let client_id = std::env::var("CLIENT_ID").unwrap();
 
-    match verify_cognito_jwt_token(auth_header, &user_pool_region, &user_pool_id).await {
-        Ok(token_data) => println!("JWT token is valid! User ID: {}", token_data.claims.username),
-        Err(err) => eprintln!("Error: {}", err),
+    // match verify_cognito_jwt_token(auth_header, &user_pool_region, &user_pool_id).await {
+    //     Ok(token_data) => println!("JWT token is valid! User ID: {}", token_data.claims.username),
+    //     Err(_) => return Err(StatusCode::UNAUTHORIZED),
+    // }
+
+    let keyset = KeySet::new(user_pool_region, user_pool_id).unwrap();
+    let verifier = keyset
+        .new_access_token_verifier(&[&client_id])
+        .string_equals("my_claim", "foo")
+        .build().unwrap();
+
+    match keyset.verify(&auth_header, &verifier).await{
+        Ok(result) => println!("{:?}",result),
+        Err(_) => return Err(StatusCode::UNAUTHORIZED),
     }
-
 
     Ok(next.run(request).await)
 }
-
-
 
 async fn fetch_jwks(user_pool_region: &str, user_pool_id: &str) -> Result<String, reqwest::Error> {
     let jwks_url = format!(
@@ -87,7 +97,11 @@ fn find_rsa_key(jwks: &str, kid: &str) -> Result<JWK, jsonwebtoken::errors::Erro
     Ok(rsa_key)
 }
 
-async fn verify_cognito_jwt_token(jwt_token: &str, user_pool_region: &str, user_pool_id: &str) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
+async fn verify_cognito_jwt_token(
+    jwt_token: &str,
+    user_pool_region: &str,
+    user_pool_id: &str,
+) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
     // Decode the JWT to get the kid (Key ID)
     let jwt_header = jsonwebtoken::decode_header(jwt_token)?;
 
@@ -105,14 +119,13 @@ async fn verify_cognito_jwt_token(jwt_token: &str, user_pool_region: &str, user_
     validation.leeway = 5; // Allow a 60-second leeway for token expiration
     validation.validate_exp = true; // Validate expiration claim
     validation.validate_nbf = true; // Validate not-before claim
-    validation.set_issuer(&[&format!("https://cognito-idp.{}.amazonaws.com/{}",user_pool_region,user_pool_id)]);
-
+    validation.set_issuer(&[&format!(
+        "https://cognito-idp.{}.amazonaws.com/{}",
+        user_pool_region, user_pool_id
+    )]);
 
     // Decode and verify the JWT token
     let token_data = decode::<Claims>(jwt_token, &decoding_key, &validation)?;
 
     Ok(token_data)
 }
-
-
-

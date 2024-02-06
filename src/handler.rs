@@ -229,7 +229,7 @@ pub async fn login(
         },
         Err(error) => {
             let error_response = serde_json::json!({
-                "status": "error","message": format!("{:?}", error)
+                "status": "error","message": format!("{:?}", error.to_string())
             });
             Err((StatusCode::OK,Json(error_response)))
         },
