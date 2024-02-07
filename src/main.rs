@@ -73,7 +73,8 @@ async fn main() {
         r#"CREATE TABLE IF NOT EXISTS todos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         task TEXT NOT NULL,
-        completed BOOLEAN NOT NULL DEFAULT 0
+        completed BOOLEAN NOT NULL DEFAULT 0,
+        username VARCHAR(120) NOT NULL
     );"#,
     )
     .execute(&pool)

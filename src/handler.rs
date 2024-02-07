@@ -7,7 +7,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
+    Extension, Json,
 };
 use base64::{engine::general_purpose, Engine};
 use ring::hmac;
@@ -15,8 +15,8 @@ use serde_json::json;
 use sqlx::{query, query_as};
 
 use crate::{
-    model::Todo,
-    schema::{ConfirmUserSchema, CreateTodoSchema, SignupSchema, UpdateTodoSchema, LoginSchema},
+    model::{CurrentUser, Todo},
+    schema::{ConfirmUserSchema, CreateTodoSchema, LoginSchema, SignupSchema, UpdateTodoSchema},
     AppState,
 };
 
@@ -35,11 +35,14 @@ pub async fn health_checker_handler() -> impl IntoResponse {
 // Handler for getting all Todo items
 pub async fn get_todos(
     State(data): State<Arc<AppState>>,
+    Extension(current_user): Extension<CurrentUser>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Fetch all Todo items from the database
-    let todos_result = query_as::<_, Todo>("SELECT id, task, completed FROM todos")
-        .fetch_all(&data.db)
-        .await;
+    let todos_result =
+        query_as::<_, Todo>("SELECT id, task, completed FROM todos where username = ?")
+            .bind(current_user.username)
+            .fetch_all(&data.db)
+            .await;
     if todos_result.is_err() {
         // Handle error response if fetching todos fails
         let error_response = serde_json::json!({
@@ -62,14 +65,16 @@ pub async fn get_todos(
 // Handler for creating a new Todo
 pub async fn create_todo(
     State(data): State<Arc<AppState>>,
+    Extension(current_user): Extension<CurrentUser>,
     Json(body): Json<CreateTodoSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Insert a new Todo into the database
-    let todo_result = query_as::<_, Todo>(
-        "INSERT INTO todos (task, completed) VALUES (?, ?) RETURNING id, task, completed",
+    let todo_result: Result<Todo, sqlx::Error> = query_as::<_, Todo>(
+        "INSERT INTO todos (task, completed, username) VALUES (?, ?, ?) RETURNING id, task, completed, username",
     )
     .bind(body.task)
     .bind(body.completed)
+    .bind(current_user.username)
     .fetch_one(&data.db)
     .await;
 
@@ -105,12 +110,14 @@ pub async fn create_todo(
 // Handler for getting a specific Todo by ID
 pub async fn get_todo(
     Path(id): Path<i32>,
+    Extension(current_user): Extension<CurrentUser>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Fetch a Todo by ID from the database
     let todo_result =
-        sqlx::query_as::<_, Todo>("SELECT id, task, completed FROM todos where id = ?")
+        sqlx::query_as::<_, Todo>("SELECT id, task, completed FROM todos where id = ? and username = ?")
             .bind(id)
+            .bind(current_user.username)
             .fetch_one(&data.db)
             .await;
 
@@ -138,15 +145,17 @@ pub async fn get_todo(
 pub async fn update_todo(
     Path(id): Path<i32>,
     State(data): State<Arc<AppState>>,
+    Extension(current_user): Extension<CurrentUser>,
     Json(body): Json<UpdateTodoSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Update a Todo by ID in the database
     let todo_result = query_as::<_, Todo>(
-        "UPDATE todos SET task = ?, completed = ? WHERE id = ? RETURNING id, task, completed",
+        "UPDATE todos SET task = ?, completed = ? WHERE id = ? and username = ? RETURNING id, task, completed",
     )
     .bind(body.task)
     .bind(body.completed)
     .bind(id)
+    .bind(current_user.username)
     .fetch_one(&data.db)
     .await;
 
@@ -173,10 +182,12 @@ pub async fn update_todo(
 pub async fn delete_todo(
     Path(id): Path<i32>,
     State(data): State<Arc<AppState>>,
+    Extension(current_user): Extension<CurrentUser>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Delete a Todo by ID from the database
-    let rows_affected = query("DELETE FROM todos WHERE id = ?")
+    let rows_affected = query("DELETE FROM todos WHERE id = ? and username = ?")
         .bind(id)
+        .bind(current_user.username)
         .execute(&data.db)
         .await
         .unwrap()
@@ -197,7 +208,6 @@ pub async fn login(
     State(data): State<Arc<AppState>>,
     Json(body): Json<LoginSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-
     let client_id = std::env::var("CLIENT_ID").unwrap();
 
     let client_secret = generate_secret_hash(
@@ -208,33 +218,46 @@ pub async fn login(
 
     let _user_pool_id = std::env::var("USER_POOL_ID").unwrap();
 
-    let initiate_auth_fluent_builder = data.client.initiate_auth()
-    .client_id(client_id)
-    .auth_flow(UserPasswordAuth)
-    .auth_parameters("USERNAME",&body.username)
-    .auth_parameters("PASSWORD", &body.password)
-    .auth_parameters("SECRET_HASH", client_secret);
-    
-    match initiate_auth_fluent_builder.send().await{
+    let initiate_auth_fluent_builder = data
+        .client
+        .initiate_auth()
+        .client_id(client_id)
+        .auth_flow(UserPasswordAuth)
+        .auth_parameters("USERNAME", &body.username)
+        .auth_parameters("PASSWORD", &body.password)
+        .auth_parameters("SECRET_HASH", client_secret);
+
+    match initiate_auth_fluent_builder.send().await {
         Ok(response) => {
-            let access_token = response.authentication_result().unwrap().access_token().unwrap();
-            let id_token = response.authentication_result().unwrap().id_token().unwrap();
-            let refresh_token = response.authentication_result().unwrap().refresh_token().unwrap();
-             let success_response = serde_json::json!({"status": "success","data": serde_json::json!({
+            let access_token = response
+                .authentication_result()
+                .unwrap()
+                .access_token()
+                .unwrap();
+            let id_token = response
+                .authentication_result()
+                .unwrap()
+                .id_token()
+                .unwrap();
+            let refresh_token = response
+                .authentication_result()
+                .unwrap()
+                .refresh_token()
+                .unwrap();
+            let success_response = serde_json::json!({"status": "success","data": serde_json::json!({
                 "access_token": access_token,
                 "id_token":id_token,
                 "refresh_token":refresh_token
             })});
-            Ok((StatusCode::OK,Json(success_response)))
-        },
+            Ok((StatusCode::OK, Json(success_response)))
+        }
         Err(error) => {
             let error_response = serde_json::json!({
                 "status": "error","message": format!("{:?}", error.to_string())
             });
-            Err((StatusCode::OK,Json(error_response)))
-        },
+            Err((StatusCode::OK, Json(error_response)))
+        }
     }
-
 }
 
 pub async fn signup(
@@ -272,7 +295,6 @@ pub async fn signup(
                 serde_json::json!({
                     "status": "success","message": "User is confirmed and ready to use."
                 })
-               
             } else {
                 serde_json::json!({
                     "status": "success","message": "User requires confirmation. Check email for a verification code."
