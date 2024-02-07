@@ -5,7 +5,7 @@ use aws_sdk_cognitoidentityprovider::types::AuthFlowType::UserPasswordAuth;
 
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{self, HeaderMap, StatusCode},
     response::IntoResponse,
     Extension, Json,
 };
@@ -114,12 +114,13 @@ pub async fn get_todo(
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Fetch a Todo by ID from the database
-    let todo_result =
-        sqlx::query_as::<_, Todo>("SELECT id, task, completed FROM todos where id = ? and username = ?")
-            .bind(id)
-            .bind(current_user.username)
-            .fetch_one(&data.db)
-            .await;
+    let todo_result = sqlx::query_as::<_, Todo>(
+        "SELECT id, task, completed FROM todos where id = ? and username = ?",
+    )
+    .bind(id)
+    .bind(current_user.username)
+    .fetch_one(&data.db)
+    .await;
 
     // Handle the result and prepare the response
     match todo_result {
@@ -346,6 +347,37 @@ pub async fn confirm_user(
             Err((StatusCode::OK, Json(error_response)))
         }
     }
+}
+
+pub async fn logout(
+    State(data): State<Arc<AppState>>,
+    headers: HeaderMap
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    
+    let auth_header = headers
+        .get(http::header::AUTHORIZATION)
+        .ok_or(StatusCode::BAD_REQUEST).unwrap()
+        .to_str()
+        .unwrap();
+
+    let global_sign_out_builder = data.client.global_sign_out()
+    .access_token(auth_header);
+     
+     match global_sign_out_builder.send().await{
+        Ok(_) => {
+            let success_response = serde_json::json!({
+                "status": "success","message": "User is logged out"
+            });
+            Ok((StatusCode::OK, Json(success_response)))
+        },
+        Err(error) => {
+            let error_response = serde_json::json!({
+                "status": "error","message": format!("{}",error.to_string())
+            });
+            Err((StatusCode::OK, Json(error_response)))
+        },
+    }
+    
 }
 
 fn generate_secret_hash(client_secret: &str, user_name: &str, client_id: &str) -> String {
